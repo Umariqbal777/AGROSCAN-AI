@@ -5,4 +5,3 @@ venv/
 database.db
 static/uploads/*
 !static/uploads/.gitkeep
-best.pt
