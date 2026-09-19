@@ -1,0 +1,82 @@
+{% extends 'layout.html' %}{% block content %}
+<div class="max-w-2xl mx-auto py-8">
+  <div class="text-center mb-8 fade-up fade-up-1">
+    <h1 class="text-4xl font-black mb-2" style="font-family:'Playfair Display',serif">{{ _('Crop Analysis') }}</h1>
+    <p class="sage-text">{{ _('Upload a leaf image — our AI scans for 38 diseases in seconds') }}</p>
+  </div>
+
+  {% if model_loading %}
+  <div class="card p-12 text-center fade-up fade-up-2">
+    <div class="w-14 h-14 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-5" style="border-top-color:transparent"></div>
+    <h3 class="text-xl font-bold mb-2">{{ _('Loading YOLO11 Model') }}</h3>
+    <p class="sage-text text-sm">{{ _('This usually takes 30–60 seconds. Please stay on this page.') }}</p>
+  </div>
+  {% else %}
+  <div class="card p-8 mb-5 fade-up fade-up-2">
+    <form id="upload-form" method="post" action="{{ url_for('predict_page') }}" enctype="multipart/form-data">
+      <input type="hidden" name="source" id="source-input" value="upload">
+
+      <label for="file-upload" id="drop-zone" class="block rounded-xl p-10 text-center cursor-pointer transition-all" style="border:2px dashed rgba(45,106,53,0.4);background:rgba(45,106,53,0.04)">
+        <input id="file-upload" name="file" type="file" accept="image/jpeg,image/png,image/jpg" class="hidden"
+          onchange="onFileSelect(this)">
+        <div id="drop-icon" class="text-5xl mb-3">🌿</div>
+        <p class="font-semibold mb-1">{{ _('Drop leaf image here or click to browse') }}</p>
+        <p id="file-info" class="sage-text text-sm">JPG, PNG supported · Max 10MB</p>
+      </label>
+
+      <div id="preview-wrapper" class="hidden mt-5">
+        <img id="preview-img" class="w-full rounded-xl max-h-64 object-contain" style="border:1px solid rgba(45,106,53,0.3)">
+      </div>
+
+      <button id="submit-button" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-base mt-5 justify-center">
+        🔍 Detect Disease
+      </button>
+      <div id="loader" class="hidden mt-5 flex items-center justify-center gap-3 py-3 rounded-xl" style="background:rgba(45,106,53,0.1)">
+        <div class="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <span class="text-sm sage-text">{{ _('Analyzing with YOLO11…') }}</span>
+      </div>
+    </form>
+  </div>
+
+  <div class="space-y-3 fade-up fade-up-3">
+    {% if last_uploaded_image_url %}
+    <form method="post" action="{{ url_for('predict_page') }}">
+      <input type="hidden" name="source" value="reuse">
+      <button type="submit" class="w-full card p-4 flex items-center gap-3 text-left hover:border-green-600 transition-all">
+        <span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(45,106,53,0.2)">🔄</span>
+        <div><div class="font-medium text-sm">{{ _('Re-analyze last image') }}</div><div class="sage-text text-xs">{{ _('Use the previously uploaded photo') }}</div></div>
+      </button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('predict_page') }}">
+      <input type="hidden" name="source" value="sample">
+      <button type="submit" class="w-full card p-4 flex items-center gap-3 text-left hover:border-green-600 transition-all">
+        <span class="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style="background:rgba(201,168,76,0.15)">🧪</span>
+        <div><div class="font-medium text-sm">{{ _('Try with sample leaf') }}</div><div class="sage-text text-xs">{{ _('Test the model with our built-in image') }}</div></div>
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function onFileSelect(input) {
+  document.getElementById('source-input').value = 'upload';
+  const file = input.files[0];
+  if (file) {
+    document.getElementById('file-info').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('preview-wrapper').classList.remove('hidden');
+      document.getElementById('drop-icon').textContent = '✅';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+document.getElementById('upload-form').addEventListener('submit', () => {
+  document.getElementById('submit-button').classList.add('hidden');
+  document.getElementById('loader').classList.remove('hidden');
+});
+</script>
+{% endblock %}

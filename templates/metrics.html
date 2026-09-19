@@ -1,0 +1,49 @@
+{% extends 'layout.html' %}{% block content %}
+<div class="py-6">
+  <div class="mb-8 fade-up fade-up-1">
+    <h1 class="text-3xl font-black" style="font-family:'Playfair Display',serif">{{ _('Training Metrics') }}</h1>
+    <p class="sage-text mt-1">{{ _('Model performance and architecture overview') }}</p>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-5 fade-up fade-up-2">
+    <div class="card p-6">
+      <h3 class="font-bold mb-4">{{ _('Model Architecture') }}</h3>
+      <div class="space-y-3 text-sm">
+        <div class="flex justify-between py-2 border-b divider">
+          <span class="sage-text">Framework</span>
+          <span class="font-medium">Ultralytics YOLO11</span>
+        </div>
+        <div class="flex justify-between py-2 border-b divider">
+          <span class="sage-text">Variant</span>
+          <span class="font-medium">YOLO11-Nano (Classification)</span>
+        </div>
+        <div class="flex justify-between py-2 border-b divider">
+          <span class="sage-text">Dataset</span>
+          <span class="font-medium">PlantVillage</span>
+        </div>
+        <div class="flex justify-between py-2 border-b divider">
+          <span class="sage-text">Classes</span>
+          <span class="font-medium green-text">38</span>
+        </div>
+        <div class="flex justify-between py-2">
+          <span class="sage-text">Gatekeeper</span>
+          <span class="font-medium">MobileNetV2 (ImageNet)</span>
+        </div>
+      </div>
+    </div>
+    <div class="card p-6">
+      <h3 class="font-bold mb-4">{{ _('Research Package') }}</h3>
+      <p class="sage-text text-sm mb-4">Detailed metrics including confusion matrices and classification reports are available in the training research output.</p>
+      <div class="rounded-xl p-4 text-sm" style="background:rgba(45,106,53,0.08);border:1px solid rgba(45,106,53,0.2)">
+        <p class="green-text font-medium mb-1">{{ _('Available Artifacts') }}</p>
+        <ul class="sage-text space-y-1">
+          <li>• Confusion Matrix (38×38)</li>
+          <li>• Per-class Classification Report</li>
+          <li>• Training loss curves</li>
+          <li>• Validation accuracy logs</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

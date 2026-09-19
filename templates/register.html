@@ -1,0 +1,27 @@
+{% extends 'layout.html' %}{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+  <div class="w-full max-w-md fade-up fade-up-1">
+    <div class="text-center mb-10">
+      <h1 class="text-4xl font-black mb-2" style="font-family:'Playfair Display',serif">{{ _('Join AgroScan') }}</h1>
+      <p class="sage-text">{{ _('Start detecting crop diseases with AI') }}</p>
+    </div>
+    <div class="card p-8">
+      <form method="post" action="{{ url_for('register') }}" class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium mb-2 sage-text">{{ _('Choose a Username') }}</label>
+          <input name="username" class="input-field" placeholder="{{ _('e.g. farmer_john') }}" required>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2 sage-text">{{ _('Password') }}</label>
+          <input name="password" type="password" class="input-field" placeholder="{{ _('Min. 8 characters') }}" required>
+        </div>
+        <button class="btn-gold w-full py-3 rounded-xl text-base mt-2 justify-center">{{ _('Create Account') }} →</button>
+      </form>
+      <div class="text-center mt-6 pt-6 border-t divider">
+        <span class="sage-text text-sm">{{ _('Already a member?') }} </span>
+        <a href="{{ url_for('login') }}" class="text-sm font-semibold green-text hover:underline">{{ _('Sign in') }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

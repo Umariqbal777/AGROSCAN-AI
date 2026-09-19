@@ -1,0 +1,68 @@
+{% extends 'layout.html' %}{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+  <div class="text-center mb-8 fade-up fade-up-1">
+    <h1 class="text-4xl font-black" style="font-family:'Playfair Display',serif">{{ _('Detection Result') }}</h1>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-7 fade-up fade-up-2">
+    <div>
+      <img src="{{ image_path }}" class="w-full rounded-2xl shadow-2xl" style="border:1px solid rgba(45,106,53,0.3)" alt="Scanned leaf">
+      <div class="flex gap-3 mt-4">
+        <a href="{{ url_for('predict_page') }}" class="flex-1 text-center py-3 rounded-xl text-sm font-medium transition-all" style="border:1px solid rgba(45,106,53,0.3);color:var(--sage)">{{ _('← Analyze Another') }}</a>
+        <a href="{{ url_for('history') }}" class="flex-1 text-center py-3 rounded-xl text-sm font-medium transition-all" style="border:1px solid rgba(45,106,53,0.3);color:var(--sage)">{{ _('View History') }}</a>
+      </div>
+    </div>
+
+    <div class="space-y-5">
+      <div class="card p-6" style="border-left:3px solid {% if 'healthy' in prediction|lower %}#4CAF50{% else %}#EF4444{% endif %}">
+        <p class="sage-text text-xs font-medium uppercase tracking-wider mb-2">{{ _('Detected Condition') }}</p>
+        <h2 class="text-2xl font-black" style="font-family:'Playfair Display',serif">{{ prediction }}</h2>
+        <span class="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-semibold
+          {% if 'healthy' in prediction|lower %}badge-healthy{% elif confidence_level == 'Low' %}badge-disease{% else %}badge-warning{% endif %}">
+          {% if 'healthy' in prediction|lower %}✓ Healthy Plant{% elif confidence_level == 'High' %}⚠ Disease Detected{% else %}⚠ Possible Issue{% endif %}
+        </span>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex justify-between items-center mb-3">
+          <p class="sage-text text-sm font-medium">{{ _('Confidence Score') }}</p>
+          <span class="font-bold text-lg {% if confidence_level == 'High' %}green-text{% elif confidence_level == 'Medium' %}gold-text{% else %}text-red-400{% endif %}">{{ confidence }}%</span>
+        </div>
+        <div class="h-2.5 rounded-full overflow-hidden" style="background:rgba(245,240,232,0.08)">
+          <div class="h-full rounded-full transition-all" style="width:{{ confidence }}%;background:{% if confidence_level == 'High' %}#4CAF50{% elif confidence_level == 'Medium' %}#C9A84C{% else %}#EF4444{% endif %}"></div>
+        </div>
+        <p class="sage-text text-xs mt-2">{{ confidence_level }} confidence · YOLO11</p>
+      </div>
+
+      {% if description %}
+      <div class="card p-6">
+        <p class="sage-text text-xs font-medium uppercase tracking-wider mb-2">{{ _('About This Condition') }}</p>
+        <p class="text-sm leading-relaxed" style="color:rgba(245,240,232,0.85)">{{ description }}</p>
+      </div>
+      {% endif %}
+
+      {% if remedies %}
+      <div class="card p-6">
+        <p class="sage-text text-xs font-medium uppercase tracking-wider mb-3">{{ _('Recommended Actions') }}</p>
+        <ul class="space-y-2">
+          {% for r in remedies %}
+          <li class="flex items-start gap-2.5 text-sm">
+            <span class="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs" style="background:rgba(45,106,53,0.25);color:#6FCF72">✓</span>
+            <span style="color:rgba(245,240,232,0.85)">{{ r }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% else %}
+      <div class="card p-5 flex items-center gap-3">
+        <span class="text-2xl">🌟</span>
+        <div>
+          <p class="font-semibold green-text">{{ _('Plant looks healthy!') }}</p>
+          <p class="sage-text text-xs mt-0.5">{{ _('No remedies required. Keep up good crop management.') }}</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'layout.html' %}{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+  <div class="w-full max-w-md fade-up fade-up-1">
+    <div class="text-center mb-10">
+      <h1 class="text-4xl font-black mb-2" style="font-family:'Playfair Display',serif">{{ _('Welcome Back') }}</h1>
+      <p class="sage-text">{{ _('Sign in to your AgroScan dashboard') }}</p>
+    </div>
+    <div class="card p-8">
+      <form method="post" action="{{ url_for('login') }}" class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium mb-2 sage-text">{{ _('Username') }}</label>
+          <input name="username" class="input-field" placeholder="{{ _('Enter your username') }}" required>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2 sage-text">{{ _('Password') }}</label>
+          <input name="password" type="password" class="input-field" placeholder="••••••••" required>
+        </div>
+        <button class="btn-primary w-full py-3 rounded-xl text-base mt-2 justify-center">{{ _('Sign In') }} →</button>
+      </form>
+      <div class="text-center mt-6 pt-6 border-t divider">
+        <span class="sage-text text-sm">{{ _('New here?') }} </span>
+        <a href="{{ url_for('register') }}" class="text-sm font-semibold green-text hover:underline">{{ _('Create account') }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

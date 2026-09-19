@@ -1,0 +1,64 @@
+{% extends 'layout.html' %}{% block content %}
+<div class="py-6">
+  <!-- Hero -->
+  <div class="card p-10 mb-8 relative overflow-hidden fade-up fade-up-1" style="background:linear-gradient(135deg,#1A2E1C 0%,#0D1F0F 100%)">
+    <div class="absolute top-0 right-0 w-64 h-64 rounded-full opacity-5" style="background:var(--gold);transform:translate(30%,-30%)"></div>
+    <div class="absolute bottom-0 left-0 w-48 h-48 rounded-full opacity-5" style="background:var(--green-light);transform:translate(-30%,30%)"></div>
+    <div class="relative">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-3xl">🌿</span>
+        <span class="px-3 py-1 rounded-full text-xs font-semibold" style="background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3)">{{ _('YOLO11 Active') }}</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-black mb-3" style="font-family:'Playfair Display',serif">
+        Good day, <span class="green-text">{{ current_user.username }}</span>
+      </h1>
+      <p class="sage-text text-lg max-w-xl">Your AI-powered crop guardian is ready. Upload a leaf image to detect diseases instantly.</p>
+      <div class="flex flex-wrap gap-3 mt-7">
+        <a href="{{ url_for('predict_page') }}" class="btn-primary px-6 py-3 rounded-xl font-semibold text-base">🔍 {{ _('Analyze Crop') }}</a>
+        <a href="{{ url_for('dashboard') }}" class="px-6 py-3 rounded-xl font-semibold text-base transition-all hover:bg-white/5" style="border:1px solid rgba(45,106,53,0.4);color:var(--sage)">📊 {{ _('Dashboard') }}</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="grid md:grid-cols-3 gap-5 mb-8 fade-up fade-up-2">
+    <a href="{{ url_for('predict_page') }}" class="card p-6 group cursor-pointer">
+      <div class="text-3xl mb-3">🔬</div>
+      <h3 class="font-bold text-lg mb-1">{{ _('Scan Leaf') }}</h3>
+      <p class="sage-text text-sm">{{ _('Upload any crop leaf image for instant AI diagnosis across 38 plant classes') }}</p>
+      <span class="inline-block mt-3 text-sm green-text font-medium group-hover:translate-x-1 transition-transform">{{ _('Start') }} →</span>
+    </a>
+    <a href="{{ url_for('dashboard') }}" class="card p-6 group cursor-pointer">
+      <div class="text-3xl mb-3">📈</div>
+      <h3 class="font-bold text-lg mb-1">{{ _('Analytics') }}</h3>
+      <p class="sage-text text-sm">{{ _('Track disease trends, scan frequency, and health scores over time') }}</p>
+      <span class="inline-block mt-3 text-sm green-text font-medium group-hover:translate-x-1 transition-transform">{{ _('View') }} →</span>
+    </a>
+    <a href="{{ url_for('history') }}" class="card p-6 group cursor-pointer">
+      <div class="text-3xl mb-3">📂</div>
+      <h3 class="font-bold text-lg mb-1">{{ _('History') }}</h3>
+      <p class="sage-text text-sm">{{ _('Browse all past scans with predictions, confidence levels, and timestamps') }}</p>
+      <span class="inline-block mt-3 text-sm green-text font-medium group-hover:translate-x-1 transition-transform">{{ _('Browse') }} →</span>
+    </a>
+  </div>
+
+  <!-- System info -->
+  <div class="card p-6 fade-up fade-up-3">
+    <h3 class="font-bold mb-4 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>{{ _('System Status') }}</h3>
+    <div class="grid sm:grid-cols-3 gap-4 text-sm">
+      <div class="rounded-lg p-4" style="background:rgba(245,240,232,0.03);border:1px solid rgba(45,106,53,0.15)">
+        <div class="sage-text mb-1">{{ _('Active Model') }}</div>
+        <div class="font-semibold green-text">YOLO11</div>
+      </div>
+      <div class="rounded-lg p-4" style="background:rgba(245,240,232,0.03);border:1px solid rgba(45,106,53,0.15)">
+        <div class="sage-text mb-1">{{ _('Plant Classes') }}</div>
+        <div class="font-semibold">{{ _('38 Varieties') }}</div>
+      </div>
+      <div class="rounded-lg p-4" style="background:rgba(245,240,232,0.03);border:1px solid rgba(45,106,53,0.15)">
+        <div class="sage-text mb-1">{{ _('Language') }}</div>
+        <div class="font-semibold">{{ languages[session.get('language','en')] or 'English' }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

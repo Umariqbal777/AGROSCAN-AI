@@ -1,0 +1,590 @@
+{% extends 'layout.html' %}{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<div class="py-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8 fade-up fade-up-1">
+    <div>
+      <h1 class="text-3xl font-black" style="font-family:'Playfair Display',serif">{{ _('Dashboard') }}</h1>
+      <p class="sage-text mt-1">{{ _('Your crop health analytics at a glance') }}</p>
+    </div>
+    <!-- Action buttons row -->
+    <div class="flex items-center gap-3">
+      <!-- Export PDF Button -->
+      <button id="export-pdf-btn" onclick="exportDashboardPDF()"
+        class="btn-gold flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold"
+        style="cursor:pointer">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        {{ _('Export PDF') }}
+      </button>
+      <a href="{{ url_for('predict_page') }}" class="btn-primary px-5 py-2.5 rounded-xl text-sm">+ {{ _('New Scan') }}</a>
+    </div>
+  </div>
+
+  <!-- PDF Generation Overlay -->
+  <div id="pdf-overlay"
+    style="display:none;position:fixed;inset:0;background:rgba(13,31,15,0.92);
+           z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+    <div class="pdf-spinner"></div>
+    <div style="text-align:center">
+      <p style="color:#F5F0E8;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;margin-bottom:6px">
+        {{ _('Generating PDF Report…') }}
+      </p>
+      <p style="color:#8FAF8C;font-family:'DM Sans',sans-serif;font-size:13px">
+        {{ _('Capturing charts and data — please wait') }}
+      </p>
+    </div>
+  </div>
+
+  <div id="pdf-content">
+
+    <!-- Stat Cards -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8 fade-up fade-up-2">
+      <div class="stat-card p-5">
+        <div class="text-3xl font-black gold-text mb-1">{{ total_scans }}</div>
+        <div class="sage-text text-sm">{{ _('Total Scans') }}</div>
+        <div class="mt-2 text-xs" style="color:rgba(245,240,232,0.4)">{{ _('All time') }}</div>
+      </div>
+      <div class="stat-card p-5">
+        <div class="text-3xl font-black mb-1" style="color:#F87171">{{ diseases_found }}</div>
+        <div class="sage-text text-sm">{{ _('Diseases Detected') }}</div>
+        <div class="mt-2 text-xs" style="color:rgba(245,240,232,0.4)">{{ _('Needs attention') }}</div>
+      </div>
+      <div class="stat-card p-5">
+        <div class="text-3xl font-black green-text mb-1">{{ healthy_count }}</div>
+        <div class="sage-text text-sm">{{ _('Healthy Plants') }}</div>
+        <div class="mt-2 text-xs" style="color:rgba(245,240,232,0.4)">{{ _('No disease found') }}</div>
+      </div>
+      <div class="stat-card p-5">
+        <div class="text-3xl font-black gold-text mb-1">{{ avg_conf }}%</div>
+        <div class="sage-text text-sm">{{ _('Avg. Confidence') }}</div>
+        <div class="mt-2 text-xs" style="color:rgba(245,240,232,0.4)">{{ _('Model certainty') }}</div>
+      </div>
+    </div>
+
+    {% if has_data %}
+    <!-- Charts Row -->
+    <div class="grid lg:grid-cols-2 gap-5 mb-8 fade-up fade-up-3">
+      <div class="card p-6">
+        <h3 class="font-bold mb-1">{{ _('Disease Distribution') }}</h3>
+        <p class="sage-text text-xs mb-5">{{ _('Detection breakdown by type') }}</p>
+        <div style="height:260px;position:relative"><canvas id="diseaseChart"></canvas></div>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-bold mb-1">{{ _('Scan Activity') }}</h3>
+        <p class="sage-text text-xs mb-5">{{ _('Monthly analysis frequency') }}</p>
+        <div style="height:260px;position:relative"><canvas id="monthlyChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Health Score + Recent Scans -->
+    <div class="grid lg:grid-cols-3 gap-5 mb-8 fade-up fade-up-3">
+      <div class="card p-6">
+        <h3 class="font-bold mb-4">{{ _('Crop Health Score') }}</h3>
+        {% if total_scans > 0 %}
+          {% set health_pct = ((healthy_count / total_scans) * 100)|int %}
+        {% else %}
+          {% set health_pct = 0 %}
+        {% endif %}
+        <div class="relative flex items-center justify-center" style="height:160px">
+          <canvas id="healthDonut"></canvas>
+          <div class="text-center absolute">
+            <div class="text-4xl font-black green-text">{{ health_pct }}%</div>
+            <div class="sage-text text-xs mt-1">{{ _('Healthy') }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="lg:col-span-2 card p-6">
+        <h3 class="font-bold mb-4">{{ _('Recent Scans') }}</h3>
+        {% if recent_scans %}
+        <div class="space-y-3">
+          {% for s in recent_scans %}
+          <div class="flex items-center justify-between p-3 rounded-lg" style="background:rgba(245,240,232,0.03);border:1px solid rgba(45,106,53,0.12)">
+            <div class="flex items-center gap-3">
+              {% if 'healthy' in s.prediction|lower %}
+              <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:rgba(76,175,80,0.15)">✓</span>
+              {% else %}
+              <span class="w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background:rgba(239,68,68,0.15)">⚠</span>
+              {% endif %}
+              <div>
+                <div class="font-medium text-sm">{{ s.prediction }}</div>
+                <div class="sage-text text-xs">{{ s.time[:10] }}</div>
+              </div>
+            </div>
+            <span class="text-sm font-semibold {% if s.confidence >= 85 %}green-text{% elif s.confidence >= 60 %}gold-text{% else %}text-red-400{% endif %}">{{ s.confidence }}%</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="sage-text text-sm">No scans yet. <a href="{{ url_for('predict_page') }}" class="green-text hover:underline">Run your first analysis</a></p>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card p-16 text-center fade-up fade-up-3">
+      <div class="text-5xl mb-4">🌱</div>
+      <h3 class="text-xl font-bold mb-2">No data yet</h3>
+      <p class="sage-text mb-6">{{ _('Scan your first crop leaf to populate your dashboard') }}</p>
+      <a href="{{ url_for('predict_page') }}" class="btn-primary px-8 py-3 rounded-xl inline-block justify-center">{{ _('Start Analyzing') }}</a>
+    </div>
+    {% endif %}
+
+    <!-- Model Info Card -->
+    <div class="card p-6 fade-up fade-up-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 class="font-bold mb-1">{{ _('Model Configuration') }}</h3>
+          <p class="sage-text text-sm">{{ _('YOLO11 Nano Classification · PlantVillage · 38 crop/disease classes') }}</p>
+        </div>
+        <span class="px-4 py-2 rounded-lg text-sm font-semibold" style="background:rgba(76,175,80,0.1);color:#6FCF72;border:1px solid rgba(76,175,80,0.25)">✓ {{ _('YOLO11 Active') }}</span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+Chart.defaults.color = 'rgba(245,240,232,0.55)';
+Chart.defaults.borderColor = 'rgba(45,106,53,0.15)';
+const PALETTE = ['#4CAF50','#C9A84C','#EF4444','#6366F1','#06B6D4','#F472B6','#A78BFA','#34D399'];
+
+{% if has_data %}
+// Disease doughnut
+new Chart(document.getElementById('diseaseChart'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ disease_labels | tojson }},
+    datasets: [{ data: {{ disease_values | tojson }}, backgroundColor: PALETTE, borderWidth: 0, hoverOffset: 8 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    animation: { duration: 600 },
+    plugins: { legend: { position: 'right', labels: { color: 'rgba(245,240,232,0.7)', padding: 12, font: { size: 11 } } } }
+  }
+});
+
+// Monthly bar
+new Chart(document.getElementById('monthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ monthly_labels | tojson }},
+    datasets: [{ label: 'Scans', data: {{ monthly_values | tojson }},
+      backgroundColor: 'rgba(45,106,53,0.7)', borderColor: '#4CAF50',
+      borderWidth: 1, borderRadius: 6, hoverBackgroundColor: '#4CAF50' }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 600 },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(45,106,53,0.1)' } },
+      x: { grid: { display: false } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// Health donut
+new Chart(document.getElementById('healthDonut'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{ data: [{{ healthy_count }}, {{ diseases_found }}],
+      backgroundColor: ['rgba(76,175,80,0.75)', 'rgba(239,68,68,0.2)'], borderWidth: 0 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '75%',
+    animation: { duration: 600 },
+    plugins: { legend: { display: false } }
+  }
+});
+{% endif %}
+
+// ════════════════════════════════════════════════════════════════
+//  PDF EXPORT — pure jsPDF, drawn programmatically from data
+//  No html2canvas, no DOM capture, works in all environments
+// ════════════════════════════════════════════════════════════════
+
+// Pull Flask template data into JS variables
+const PDF_DATA = {
+  totalScans:    {{ total_scans }},
+  diseasesFound: {{ diseases_found }},
+  healthyCount:  {{ healthy_count }},
+  avgConf:       {{ avg_conf }},
+  hasData:       {{ 'true' if has_data else 'false' }},
+  diseaseLabels: {{ disease_labels | tojson }},
+  diseaseValues: {{ disease_values | tojson }},
+  monthlyLabels: {{ monthly_labels | tojson }},
+  monthlyValues: {{ monthly_values | tojson }},
+  recentScans:   {{ recent_scans | tojson }},
+  username:      {{ current_user.username | tojson }}
+};
+
+function exportDashboardPDF() {
+  const btn     = document.getElementById('export-pdf-btn');
+  const overlay = document.getElementById('pdf-overlay');
+  overlay.style.display = 'flex';
+  btn.disabled = true;
+
+  // Small delay so overlay renders before we block the thread
+  setTimeout(function() {
+    try {
+      buildPDF();
+    } catch(err) {
+      console.error('PDF error:', err);
+      alert('PDF generation failed: ' + err.message);
+    } finally {
+      overlay.style.display = 'none';
+      btn.disabled = false;
+    }
+  }, 80);
+}
+
+function buildPDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W    = pdf.internal.pageSize.getWidth();   // 210
+  const H    = pdf.internal.pageSize.getHeight();  // 297
+  const M    = 14;   // left/right margin
+  const CW   = W - M * 2;  // content width
+  const now  = new Date();
+
+  // ── COLOUR HELPERS ──────────────────────────────────────────────────────
+  const C = {
+    dark:   [13,  31,  15],
+    green:  [45,  106, 53],
+    greenL: [76,  175, 80],
+    gold:   [201, 168, 76],
+    cream:  [245, 240, 232],
+    sage:   [143, 175, 140],
+    red:    [248, 113, 113],
+    white:  [255, 255, 255],
+    bgCard: [26,  46,  28],
+    border: [45,  106, 53],
+    gray:   [160, 180, 160],
+  };
+
+  function fill(c) { pdf.setFillColor(...c); }
+  function stroke(c) { pdf.setDrawColor(...c); }
+  function color(c) { pdf.setTextColor(...c); }
+  function bold(sz)   { pdf.setFont('helvetica', 'bold');   pdf.setFontSize(sz); }
+  function normal(sz) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(sz); }
+  function italic(sz) { pdf.setFont('helvetica', 'italic'); pdf.setFontSize(sz); }
+
+  // ── PAGE BACKGROUND ─────────────────────────────────────────────────────
+  function pageBg() {
+    fill(C.dark); pdf.rect(0, 0, W, H, 'F');
+    // subtle grid texture
+    stroke([20, 50, 22]); pdf.setLineWidth(0.1);
+    for (let x = 0; x < W; x += 8)  pdf.line(x, 0, x, H);
+    for (let y = 0; y < H; y += 8)  pdf.line(0, y, W, y);
+  }
+
+  // ── ROUNDED RECT ────────────────────────────────────────────────────────
+  function rrect(x, y, w, h, r, fillC, strokeC) {
+    if (fillC)   fill(fillC);
+    if (strokeC) { stroke(strokeC); pdf.setLineWidth(0.4); }
+    const mode = fillC && strokeC ? 'FD' : fillC ? 'F' : 'S';
+    pdf.roundedRect(x, y, w, h, r, r, mode);
+  }
+
+  // ── HEADER ──────────────────────────────────────────────────────────────
+  function drawHeader() {
+    // Header bar
+    fill(C.dark); pdf.rect(0, 0, W, 30, 'F');
+    // Left green accent bar
+    fill(C.green); pdf.rect(0, 0, 4, 30, 'F');
+    // Gold bottom stripe
+    fill(C.gold); pdf.rect(0, 28, W, 2, 'F');
+
+    // Logo
+    bold(18); color(C.cream);
+    pdf.text('AgroScan', M + 2, 13);
+    bold(18); color(C.gold);
+    const aw = pdf.getTextWidth('AgroScan');
+    pdf.text(' AI', M + 2 + aw, 13);
+
+    // Subtitle
+    normal(8); color(C.sage);
+    pdf.text('Dashboard Report  ·  YOLO11  ·  PlantVillage  ·  38 Classes', M + 2, 22);
+
+    // Timestamp top-right
+    const stamp = now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})
+                + '  ' + now.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+    bold(8); color(C.gold);
+    pdf.text(stamp, W - M, 13, { align: 'right' });
+    normal(7); color(C.sage);
+    pdf.text('User: ' + PDF_DATA.username, W - M, 21, { align: 'right' });
+  }
+
+  // ── FOOTER ──────────────────────────────────────────────────────────────
+  function drawFooter(pageNum, totalPages) {
+    fill([10, 25, 12]); pdf.rect(0, H - 11, W, 11, 'F');
+    fill(C.gold); pdf.rect(0, H - 11, W, 0.6, 'F');
+    normal(7); color(C.sage);
+    pdf.text('Generated by AgroScan AI  ·  Powered by YOLO11 + PlantVillage', M, H - 4);
+    color(C.gold);
+    pdf.text('Page ' + pageNum + ' of ' + totalPages, W - M, H - 4, { align: 'right' });
+  }
+
+  // ── STAT CARD ───────────────────────────────────────────────────────────
+  function statCard(x, y, w, h, value, label, valueColor) {
+    rrect(x, y, w, h, 3, C.bgCard, C.border);
+    // top accent line
+    fill(C.greenL); pdf.rect(x, y, w, 1.2, 'F');
+    bold(16); color(valueColor || C.gold);
+    pdf.text(String(value), x + 5, y + 13);
+    normal(8); color(C.sage);
+    pdf.text(label, x + 5, y + 20);
+  }
+
+  // ── SIMPLE BAR CHART ────────────────────────────────────────────────────
+  function drawBarChart(x, y, w, h, labels, values, title) {
+    rrect(x, y, w, h, 3, C.bgCard, C.border);
+    bold(9); color(C.cream);
+    pdf.text(title, x + 5, y + 9);
+    normal(7); color(C.sage);
+    pdf.text('Monthly scan frequency', x + 5, y + 15);
+
+    if (!values || values.length === 0) {
+      normal(9); color(C.sage);
+      pdf.text('No data yet', x + w/2, y + h/2, { align: 'center' });
+      return;
+    }
+
+    const cx = x + 5, cy = y + 20, cw = w - 10, ch = h - 30;
+    const maxV = Math.max(...values, 1);
+    const barW = Math.min(cw / values.length - 3, 18);
+    const gap  = cw / values.length;
+
+    // Y gridlines
+    stroke([30, 60, 32]); pdf.setLineWidth(0.2);
+    for (let i = 0; i <= 4; i++) {
+      const gy = cy + ch - (ch * i / 4);
+      pdf.line(cx, gy, cx + cw, gy);
+      normal(5.5); color(C.sage);
+      pdf.text(String(Math.round(maxV * i / 4)), cx - 1, gy + 1.5, { align: 'right' });
+    }
+
+    // Bars
+    values.forEach((v, i) => {
+      const bh = (v / maxV) * ch;
+      const bx = cx + i * gap + (gap - barW) / 2;
+      const by = cy + ch - bh;
+      // bar shadow
+      fill([20, 60, 22]); pdf.rect(bx + 1, by + 1, barW, bh, 'F');
+      // bar
+      fill(C.greenL); pdf.roundedRect(bx, by, barW, bh, 1.5, 1.5, 'F');
+      // label
+      normal(5); color(C.sage);
+      const lbl = labels[i] || '';
+      pdf.text(lbl.length > 5 ? lbl.slice(0,5) : lbl, bx + barW/2, cy + ch + 5, { align: 'center' });
+      // value on bar
+      if (bh > 8) { bold(6); color(C.cream); pdf.text(String(v), bx + barW/2, by + 5, { align: 'center' }); }
+    });
+  }
+
+  // ── DONUT CHART (drawn as legend table) ──────────────────────────────
+  function drawDonutAsPieTable(x, y, w, h, labels, values, title, subtitle) {
+    rrect(x, y, w, h, 3, C.bgCard, C.border);
+    bold(9); color(C.cream);
+    pdf.text(title, x + 5, y + 9);
+    if (subtitle) { normal(7); color(C.sage); pdf.text(subtitle, x + 5, y + 15); }
+
+    if (!values || values.length === 0) {
+      normal(8); color(C.sage);
+      pdf.text('No data yet', x + w/2, y + h/2, { align: 'center' });
+      return;
+    }
+
+    const total = values.reduce((a, b) => a + b, 0);
+    const COLORS = [C.greenL, [201,168,76], [248,113,113], [99,102,241], [6,182,212], [244,114,182], [167,139,250], [52,211,153]];
+
+    // Draw as a clean legend table
+    const startY = y + (subtitle ? 20 : 16);
+    const rowH   = 7;
+    values.forEach((v, i) => {
+      if (i > 8) return; // max 9 rows
+      const ry = startY + i * rowH;
+      // colour swatch
+      fill(COLORS[i % COLORS.length]);
+      pdf.rect(x + 5, ry - 3.5, 4, 4, 'F');
+      // label
+      normal(6.5); color(C.cream);
+      const lbl = (labels[i] || '');
+      const shortLbl = lbl.length > 28 ? lbl.slice(0, 28) + '…' : lbl;
+      pdf.text(shortLbl, x + 11, ry);
+      // value + pct
+      const pct = total > 0 ? Math.round(v / total * 100) : 0;
+      bold(6.5); color(C.gold);
+      pdf.text(v + '  (' + pct + '%)', x + w - 5, ry, { align: 'right' });
+    });
+  }
+
+  // ── HEALTH SCORE CARD ────────────────────────────────────────────────────
+  function drawHealthCard(x, y, w, h) {
+    rrect(x, y, w, h, 3, C.bgCard, C.border);
+    fill(C.greenL); pdf.rect(x, y, w, 1.2, 'F');
+    bold(9); color(C.cream);
+    pdf.text('Crop Health Score', x + 5, y + 9);
+
+    const total   = PDF_DATA.totalScans;
+    const healthy = PDF_DATA.healthyCount;
+    const sick    = PDF_DATA.diseasesFound;
+    const pct     = total > 0 ? Math.round(healthy / total * 100) : 0;
+
+    // Big percentage
+    bold(28); color(pct >= 70 ? C.greenL : pct >= 40 ? C.gold : C.red);
+    pdf.text(pct + '%', x + w/2, y + 32, { align: 'center' });
+    normal(8); color(C.sage);
+    pdf.text('Overall Health', x + w/2, y + 39, { align: 'center' });
+
+    // Mini progress bar
+    const bx = x + 8, bw = w - 16, bh2 = 5, by2 = y + 44;
+    rrect(bx, by2, bw, bh2, 2, [20,50,22], null);
+    const fillW = bw * pct / 100;
+    fill(pct >= 70 ? C.greenL : pct >= 40 ? C.gold : C.red);
+    pdf.roundedRect(bx, by2, fillW, bh2, 2, 2, 'F');
+
+    // Sub-stats
+    const col1 = x + 8, col2 = x + w/2 + 2;
+    const sy = by2 + 12;
+
+    rrect(col1, sy, w/2 - 12, 14, 2, [20,50,22], null);
+    bold(12); color(C.greenL);
+    pdf.text(String(healthy), col1 + (w/2-12)/2, sy + 8, { align: 'center' });
+    normal(6.5); color(C.sage);
+    pdf.text('Healthy', col1 + (w/2-12)/2, sy + 13, { align: 'center' });
+
+    rrect(col2, sy, w/2 - 12, 14, 2, [50,20,20], null);
+    bold(12); color(C.red);
+    pdf.text(String(sick), col2 + (w/2-12)/2, sy + 8, { align: 'center' });
+    normal(6.5); color(C.sage);
+    pdf.text('Diseased', col2 + (w/2-12)/2, sy + 13, { align: 'center' });
+  }
+
+  // ── RECENT SCANS TABLE ───────────────────────────────────────────────────
+  function drawRecentScans(x, y, w, h) {
+    rrect(x, y, w, h, 3, C.bgCard, C.border);
+    fill(C.greenL); pdf.rect(x, y, w, 1.2, 'F');
+    bold(9); color(C.cream);
+    pdf.text('Recent Scans', x + 5, y + 9);
+
+    // Table header
+    const hdrY = y + 14;
+    fill([20, 50, 22]); pdf.rect(x + 4, hdrY - 3.5, w - 8, 7, 'F');
+    bold(6.5); color(C.sage);
+    pdf.text('Prediction',  x + 8,       hdrY);
+    pdf.text('Date',        x + w - 42,  hdrY);
+    pdf.text('Conf.',       x + w - 8,   hdrY, { align: 'right' });
+
+    if (!PDF_DATA.recentScans || PDF_DATA.recentScans.length === 0) {
+      normal(8); color(C.sage);
+      pdf.text('No scans yet', x + w/2, y + h/2, { align: 'center' });
+      return;
+    }
+
+    PDF_DATA.recentScans.forEach((s, i) => {
+      const ry = hdrY + 9 + i * 9;
+      // alternating row bg
+      if (i % 2 === 0) { fill([22, 40, 24]); pdf.rect(x + 4, ry - 4, w - 8, 8, 'F'); }
+
+      const isH = s.prediction.toLowerCase().includes('healthy');
+      // status dot
+      fill(isH ? C.greenL : C.red);
+      pdf.circle(x + 9, ry - 0.5, 1.8, 'F');
+
+      // prediction
+      normal(7); color(C.cream);
+      const pred = s.prediction.length > 32 ? s.prediction.slice(0, 32) + '…' : s.prediction;
+      pdf.text(pred, x + 13, ry);
+
+      // date
+      color(C.sage);
+      pdf.text((s.time || '').slice(0, 10), x + w - 42, ry);
+
+      // confidence
+      const conf = s.confidence;
+      color(conf >= 85 ? C.greenL : conf >= 60 ? C.gold : C.red);
+      bold(7);
+      pdf.text(conf + '%', x + w - 8, ry, { align: 'right' });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  BUILD PDF — PAGE 1
+  // ═══════════════════════════════════════════════════════════════
+  pageBg();
+  drawHeader();
+
+  let yy = 36;  // cursor below header
+
+  // ── Section title ──
+  bold(10); color(C.gold);
+  pdf.text('Overview Statistics', M, yy + 5);
+  fill(C.gold); pdf.rect(M, yy + 7, 28, 0.5, 'F');
+  yy += 12;
+
+  // ── 4 Stat Cards ──
+  const cardH = 30, cardW = (CW - 9) / 4;
+  statCard(M,                      yy, cardW, cardH, PDF_DATA.totalScans,    'Total Scans',        C.gold);
+  statCard(M + cardW + 3,          yy, cardW, cardH, PDF_DATA.diseasesFound, 'Diseases Detected',  C.red);
+  statCard(M + (cardW + 3) * 2,    yy, cardW, cardH, PDF_DATA.healthyCount,  'Healthy Plants',     C.greenL);
+  statCard(M + (cardW + 3) * 3,    yy, cardW, cardH, PDF_DATA.avgConf + '%','Avg. Confidence',    C.gold);
+  yy += cardH + 6;
+
+  // ── Health Score + Disease Distribution (side by side) ──
+  bold(10); color(C.gold);
+  pdf.text('Health & Disease Analysis', M, yy + 5);
+  fill(C.gold); pdf.rect(M, yy + 7, 40, 0.5, 'F');
+  yy += 12;
+
+  const leftW  = CW * 0.38;
+  const rightW = CW - leftW - 4;
+  const row2H  = 85;
+  drawHealthCard(M, yy, leftW, row2H);
+  drawDonutAsPieTable(M + leftW + 4, yy, rightW, row2H,
+    PDF_DATA.diseaseLabels, PDF_DATA.diseaseValues,
+    'Disease Distribution', 'Detection breakdown by prediction type');
+  yy += row2H + 6;
+
+  // ── Bar chart ──
+  bold(10); color(C.gold);
+  pdf.text('Scan Activity', M, yy + 5);
+  fill(C.gold); pdf.rect(M, yy + 7, 22, 0.5, 'F');
+  yy += 12;
+
+  const barChartH = 60;
+  drawBarChart(M, yy, CW, barChartH, PDF_DATA.monthlyLabels, PDF_DATA.monthlyValues, 'Monthly Scan Frequency');
+  yy += barChartH + 6;
+
+  // ── Recent Scans table ──
+  const remainH = H - yy - 16;
+  if (remainH > 40) {
+    bold(10); color(C.gold);
+    pdf.text('Recent Activity', M, yy + 5);
+    fill(C.gold); pdf.rect(M, yy + 7, 26, 0.5, 'F');
+    yy += 12;
+    drawRecentScans(M, yy, CW, Math.min(remainH - 12, 75));
+  }
+
+  // ── Model info footer box ──
+  const miy = H - 22;
+  rrect(M, miy, CW, 10, 2, [16, 38, 18], C.border);
+  normal(7); color(C.sage);
+  pdf.text('Model: YOLO11-Nano Classification  ·  Dataset: PlantVillage  ·  38 crop/disease classes  ·  Gatekeeper: MobileNetV2', M + 4, miy + 6.5);
+
+  // ── Page footer ──
+  drawFooter(1, 1);
+
+  // ── Save ──
+  const fname = 'AgroScan_Dashboard_' + now.toISOString().slice(0, 10) + '.pdf';
+  pdf.save(fname);
+}
+</script>
+{% endblock %}
